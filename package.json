@@ -1,5 +1,5 @@
 {
-  "name": "SDH-FreeGames",
+  "name": "sdh-freegames",
   "version": "1.0.0",
   "description": "A plugin that lists free games from the Epic Games store",
   "scripts": {
