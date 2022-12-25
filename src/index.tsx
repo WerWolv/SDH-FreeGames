@@ -1,105 +1,119 @@
 import {
-  ButtonItem,
   definePlugin,
-  DialogButton,
-  Menu,
-  MenuItem,
+  Field,
   PanelSection,
   PanelSectionRow,
-  Router,
   ServerAPI,
-  showContextMenu,
   staticClasses,
+  DialogButton,
+  DialogLabel,
+  Router
 } from "decky-frontend-lib";
-import { VFC } from "react";
-import { FaShip } from "react-icons/fa";
+import { useEffect, useState, VFC } from "react";
+import { FaCriticalRole, FaGamepad } from "react-icons/fa";
 
-import logo from "../assets/logo.png";
 
 // interface AddMethodArgs {
 //   left: number;
 //   right: number;
 // }
 
-const Content: VFC<{ serverAPI: ServerAPI }> = ({}) => {
-  // const [result, setResult] = useState<number | undefined>();
+var globalServerAPI: ServerAPI;
+var intervalId: NodeJS.Timer;
+var lastCheckDate: number = 999;
 
-  // const onClick = async () => {
-  //   const result = await serverAPI.callPluginMethod<AddMethodArgs, number>(
-  //     "add",
-  //     {
-  //       left: 2,
-  //       right: 2,
-  //     }
-  //   );
-  //   if (result.success) {
-  //     setResult(result.result);
-  //   }
-  // };
+function getEpicGamesFreeGame(serverAPI: ServerAPI) {
+  var url = "https://store-site-backend-static.ak.epicgames.com/freeGamesPromotions?country=US";
+  
+  
+  return serverAPI.fetchNoCors(url, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+  })
+  .then(response => {
+    console.log(response)
+    return JSON.parse((response.result as any).body)
+  })
+  .then(data => {
+    return data["data"]["Catalog"]["searchStore"]["elements"][0];
+  }).catch(error => console.warn(error));
+}
+
+function sendToast(serverAPI: ServerAPI) {
+  getEpicGamesFreeGame(serverAPI).then(response => {
+    serverAPI.toaster.toast({
+      title: "New free game from Epic Game Store!",
+      body: response["title"],
+      duration: 5000,
+      critical: true,
+      onClick: () => Router.NavigateToExternalWeb(`https://store.epicgames.com/en-US/p/${response["productSlug"]}`)
+    });
+  });
+  
+}
+
+const QuickAccessMenu: VFC<{}> = () => {
+  const [title, setTitle] = useState([]);
+  const [slug, setSlug] = useState([]);
+  const [desc, setDesc] = useState([]);
+  useEffect(() => {
+    getEpicGamesFreeGame(globalServerAPI).then(response => {
+      setTitle(response["title"]);
+      setSlug(response["productSlug"]);
+      setDesc(response["description"]);
+    });
+  });
 
   return (
-    <PanelSection title="Panel Section">
+    <PanelSection title="Epic Games">
       <PanelSectionRow>
-        <ButtonItem
-          layout="below"
-          onClick={(e) =>
-            showContextMenu(
-              <Menu label="Menu" cancelText="CAAAANCEL" onCancel={() => {}}>
-                <MenuItem onSelected={() => {}}>Item #1</MenuItem>
-                <MenuItem onSelected={() => {}}>Item #2</MenuItem>
-                <MenuItem onSelected={() => {}}>Item #3</MenuItem>
-              </Menu>,
-              e.currentTarget ?? window
-            )
-          }
+        <Field
+          bottomSeparator="none"
+          icon={<FaGamepad/>}
+          label={title}
+          childrenLayout={"below"}
         >
-          Server says yolo
-        </ButtonItem>
-      </PanelSectionRow>
-
-      <PanelSectionRow>
-        <div style={{ display: "flex", justifyContent: "center" }}>
-          <img src={logo} />
-        </div>
-      </PanelSectionRow>
-
-      <PanelSectionRow>
-        <ButtonItem
-          layout="below"
-          onClick={() => {
-            Router.CloseSideMenus();
-            Router.Navigate("/decky-plugin-test");
-          }}
-        >
-          Router
-        </ButtonItem>
+          <DialogLabel>{desc}</DialogLabel>
+          <br/>
+          <DialogButton
+            onClick={() => Router.NavigateToExternalWeb(`https://store.epicgames.com/en-US/p/${slug}`) }
+          >
+            Open Store Page
+          </DialogButton>
+        </Field>
       </PanelSectionRow>
     </PanelSection>
-  );
+  )
 };
 
-const DeckyPluginRouterTest: VFC = () => {
+const Content: VFC<{ serverAPI: ServerAPI }> = () => {
   return (
-    <div style={{ marginTop: "50px", color: "white" }}>
-      Hello World!
-      <DialogButton onClick={() => Router.NavigateToStore()}>
-        Go to Store
-      </DialogButton>
-    </div>
+    <QuickAccessMenu/>
   );
 };
 
 export default definePlugin((serverApi: ServerAPI) => {
-  serverApi.routerHook.addRoute("/decky-plugin-test", DeckyPluginRouterTest, {
-    exact: true,
-  });
+  globalServerAPI = serverApi;
+
+  intervalId = setInterval(() => {
+     const now = new Date().getDate();
+
+     if (now != lastCheckDate) {
+        sendToast(serverApi);
+      }
+
+      lastCheckDate = now;
+  }, 1000);
 
   return {
-    title: <div className={staticClasses.Title}>Example Plugin</div>,
+    title: <div className={staticClasses.Title}>Free Games</div>,
     content: <Content serverAPI={serverApi} />,
-    icon: <FaShip />,
+    icon: <FaCriticalRole />,
     onDismount() {
-      serverApi.routerHook.removeRoute("/decky-plugin-test");
+      clearInterval(intervalId);
     },
   };
 });
