@@ -4,7 +4,7 @@
   "flags": ["debug"],
   "publish": {
     "tags": ["template", "root"],
-    "description": "Decky example plugin.",
-    "image": "https://opengraph.githubassets.com/1/SteamDeckHomebrew/PluginLoader"
+    "description": "A plugin to notify you of free games available on the Epic Games Store.",
+    "image": "https://opengraph.githubassets.com/1/WerWolv/SDH-FreeGames"
   }
 }
