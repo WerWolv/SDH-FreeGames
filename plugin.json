@@ -3,7 +3,7 @@
   "author": "WerWolv",
   "flags": ["debug"],
   "publish": {
-    "tags": ["template", "root"],
+    "tags": [ "epic games store", "utility"],
     "description": "A plugin to notify you of free games available on the Epic Games Store.",
     "image": "https://opengraph.githubassets.com/1/WerWolv/SDH-FreeGames"
   }

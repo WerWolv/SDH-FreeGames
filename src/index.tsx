@@ -7,7 +7,8 @@ import {
   staticClasses,
   DialogButton,
   DialogLabel,
-  Router
+  Router,
+  SteamSpinner
 } from "decky-frontend-lib";
 import { useEffect, useState, VFC } from "react";
 import { FaCriticalRole, FaGamepad } from "react-icons/fa";
@@ -22,7 +23,7 @@ var globalServerAPI: ServerAPI;
 var intervalId: NodeJS.Timer;
 var lastCheckDate: number = 999;
 
-function getEpicGamesFreeGame(serverAPI: ServerAPI) {
+function getEpicGamesFreeGames(serverAPI: ServerAPI) {
   var url = "https://store-site-backend-static.ak.epicgames.com/freeGamesPromotions?country=US";
   
   
@@ -34,57 +35,71 @@ function getEpicGamesFreeGame(serverAPI: ServerAPI) {
     },
   })
   .then(response => {
-    console.log(response)
     return JSON.parse((response.result as any).body)
   })
   .then(data => {
-    return data["data"]["Catalog"]["searchStore"]["elements"][0];
+    let list: any[] = [];
+
+    for (let entry of data["data"]["Catalog"]["searchStore"]["elements"]) {
+      if (entry["productSlug"] != "[]")
+        list.push(entry);
+    }
+
+    return list;
   }).catch(error => console.warn(error));
 }
 
 function sendToast(serverAPI: ServerAPI) {
-  getEpicGamesFreeGame(serverAPI).then(response => {
-    serverAPI.toaster.toast({
-      title: "New free game from Epic Game Store!",
-      body: response["title"],
-      duration: 5000,
-      critical: true,
-      onClick: () => Router.NavigateToExternalWeb(`https://store.epicgames.com/en-US/p/${response["productSlug"]}`)
-    });
+  getEpicGamesFreeGames(serverAPI).then(response => {
+    for (let entry of response as any[]) {
+      serverAPI.toaster.toast({
+        title: "New free game from Epic Game Store!",
+        body: entry["title"],
+        duration: 5000,
+        critical: true,
+        onClick: () => Router.NavigateToExternalWeb(`https://store.epicgames.com/en-US/p/${entry["productSlug"]}`)
+      });
+    }
   });
   
 }
 
 const QuickAccessMenu: VFC<{}> = () => {
-  const [title, setTitle] = useState([]);
-  const [slug, setSlug] = useState([]);
-  const [desc, setDesc] = useState([]);
+  let newFields: any[] = [];
+  const [fields, setFields] = useState(newFields);
+
   useEffect(() => {
-    getEpicGamesFreeGame(globalServerAPI).then(response => {
-      setTitle(response["title"]);
-      setSlug(response["productSlug"]);
-      setDesc(response["description"]);
-    });
-  });
+    let result: any[] = [];
+    getEpicGamesFreeGames(globalServerAPI).then((entries) => {
+      for (let entry of entries as any[]) {
+        console.log(entry)
+        result.push((
+          <PanelSectionRow>
+            <Field
+              bottomSeparator="none"
+              icon={<FaGamepad/>}
+              label={entry["title"]}
+              childrenLayout={"below"}
+            >
+              <DialogLabel>{entry["description"]}</DialogLabel>
+              <br/>
+              <DialogButton
+                onClick={() => Router.NavigateToExternalWeb(`https://store.epicgames.com/en-US/p/${entry["productSlug"]}`) }
+              >
+                Open Store Page
+              </DialogButton>
+            </Field>
+          </PanelSectionRow>
+        ));
+      }
+
+      setFields(result);
+    })
+  }, []);
 
   return (
     <PanelSection title="Epic Games">
-      <PanelSectionRow>
-        <Field
-          bottomSeparator="none"
-          icon={<FaGamepad/>}
-          label={title}
-          childrenLayout={"below"}
-        >
-          <DialogLabel>{desc}</DialogLabel>
-          <br/>
-          <DialogButton
-            onClick={() => Router.NavigateToExternalWeb(`https://store.epicgames.com/en-US/p/${slug}`) }
-          >
-            Open Store Page
-          </DialogButton>
-        </Field>
-      </PanelSectionRow>
+      { fields.length == 0 ? <SteamSpinner/> : fields }
     </PanelSection>
   )
 };
