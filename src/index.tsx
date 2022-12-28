@@ -8,20 +8,11 @@ import {
   DialogButton,
   DialogLabel,
   Router,
-  SteamSpinner
+  SteamSpinner,
+  sleep
 } from "decky-frontend-lib";
 import { useEffect, useState, VFC } from "react";
 import { FaCriticalRole, FaGamepad } from "react-icons/fa";
-
-
-// interface AddMethodArgs {
-//   left: number;
-//   right: number;
-// }
-
-var globalServerAPI: ServerAPI;
-var intervalId: NodeJS.Timer;
-var lastCheckDate: number = 999;
 
 function getEpicGamesFreeGames(serverAPI: ServerAPI) {
   var url = "https://store-site-backend-static.ak.epicgames.com/freeGamesPromotions?country=US";
@@ -50,7 +41,7 @@ function getEpicGamesFreeGames(serverAPI: ServerAPI) {
 }
 
 function sendToast(serverAPI: ServerAPI) {
-  getEpicGamesFreeGames(serverAPI).then(response => {
+  getEpicGamesFreeGames(serverAPI).then(async response => {
     for (let entry of response as any[]) {
       serverAPI.toaster.toast({
         title: "New free game from Epic Game Store!",
@@ -59,18 +50,20 @@ function sendToast(serverAPI: ServerAPI) {
         critical: true,
         onClick: () => Router.NavigateToExternalWeb(`https://store.epicgames.com/en-US/p/${entry["productSlug"]}`)
       });
+
+      await sleep(6000);
     }
   });
   
 }
 
-const QuickAccessMenu: VFC<{}> = () => {
+const QuickAccessMenu: VFC<{ serverAPI: ServerAPI }> = ({ serverAPI }) => {
   let newFields: any[] = [];
   const [fields, setFields] = useState(newFields);
 
   useEffect(() => {
     let result: any[] = [];
-    getEpicGamesFreeGames(globalServerAPI).then((entries) => {
+    getEpicGamesFreeGames(serverAPI).then((entries) => {
       for (let entry of entries as any[]) {
         console.log(entry)
         result.push((
@@ -104,16 +97,15 @@ const QuickAccessMenu: VFC<{}> = () => {
   )
 };
 
-const Content: VFC<{ serverAPI: ServerAPI }> = () => {
+const Content: VFC<{ serverAPI: ServerAPI }> = ({ serverAPI }) => {
   return (
-    <QuickAccessMenu/>
+    <QuickAccessMenu serverAPI={serverAPI}/>
   );
 };
 
 export default definePlugin((serverApi: ServerAPI) => {
-  globalServerAPI = serverApi;
-
-  intervalId = setInterval(() => {
+  var lastCheckDate: number = 999;
+  let intervalId = setInterval(() => {
      const now = new Date().getDate();
 
      if (now != lastCheckDate) {
